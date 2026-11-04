@@ -1,0 +1,2 @@
+# Conventional tracker: naive UKF, hand-tuned noise, single-detection start, known association.
+include: ../../naive.yaml

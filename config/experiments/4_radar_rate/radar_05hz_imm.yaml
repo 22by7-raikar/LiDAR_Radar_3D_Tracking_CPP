@@ -1,0 +1,7 @@
+# Radar only: where the measurement model is most nonlinear.
+include: ../2_filters/imm.yaml
+sim:
+  lidar:
+    enabled: false
+  radar:
+    rate: 5

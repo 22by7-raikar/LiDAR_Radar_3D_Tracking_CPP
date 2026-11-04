@@ -1,0 +1,9 @@
+# Point lidar (no ray casting) to keep the sweep fast; radar clutter per frame varies.
+include: ../../realistic.yaml
+tracker:
+  management: hits
+sim:
+  lidar:
+    model: point
+  radar:
+    clutter_rate: 20

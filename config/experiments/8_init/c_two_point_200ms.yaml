@@ -1,0 +1,5 @@
+# Two-point, pairs at least 0.2 s apart, no road prior.
+include: [../../default.yaml, ../../scenarios/stalled.yaml]
+tracker:
+  init:
+    lateral_speed_std: 0.0

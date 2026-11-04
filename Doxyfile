@@ -1,0 +1,34 @@
+# Doxygen configuration for the fusion_tracking API reference.
+# Build with `cmake --build build --target doc`, or from the repository root
+# with `mkdir -p build/doc && doxygen Doxyfile`. The HTML lands in build/doc/html.
+
+PROJECT_NAME           = "fusion_tracking"
+PROJECT_BRIEF          = "LiDAR and radar fusion for multi-target tracking"
+OUTPUT_DIRECTORY       = build/doc
+INPUT                  = include docs/api_mainpage.md
+RECURSIVE              = YES
+FILE_PATTERNS          = *.h *.md
+USE_MDFILE_AS_MAINPAGE = docs/api_mainpage.md
+STRIP_FROM_PATH        = include
+STRIP_FROM_INC_PATH    = include
+FULL_PATH_NAMES        = YES
+
+EXTRACT_ALL            = NO
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = NO
+HIDE_UNDOC_MEMBERS     = NO
+JAVADOC_AUTOBRIEF      = NO
+MARKDOWN_SUPPORT       = YES
+SORT_MEMBER_DOCS       = NO
+
+QUIET                  = YES
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = NO
+WARN_AS_ERROR          = FAIL_ON_WARNINGS
+
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+HAVE_DOT               = NO

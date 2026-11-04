@@ -1,0 +1,4 @@
+# + robust UKF (circular means, fresh sigma points, Joseph form, PD checks).
+include: a_naive.yaml
+filter:
+  type: ukf

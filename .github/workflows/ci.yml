@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ libeigen3-dev libyaml-cpp-dev libgtest-dev
+      - name: Configure
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DFUSION_BUILD_VIEWER=OFF
+      - name: Build
+        run: cmake --build build -j"$(nproc)"
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
+      - name: Smoke runs
+        run: |
+          ./build/fusion_run --config config/default.yaml --out output/default
+          ./build/fusion_run --config config/realistic.yaml --out output/realistic
+          ./build/fusion_bench --runs 4 config/experiments/1_ablation/*.yaml
+
+  viewer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake g++ libeigen3-dev libyaml-cpp-dev libpcl-dev
+      - name: Build the 3D viewer
+        run: |
+          cmake -S . -B build -DFUSION_BUILD_TESTS=OFF
+          cmake --build build -j"$(nproc)" --target fusion_viewer
+
+  api-docs:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Doxygen
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends doxygen
+      - name: Build the API reference (fails on undocumented members)
+        run: mkdir -p build/doc && doxygen Doxyfile

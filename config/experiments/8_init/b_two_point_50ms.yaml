@@ -1,0 +1,6 @@
+# Two-point, pairing allowed after 50 ms, no road prior.
+include: [../../default.yaml, ../../scenarios/stalled.yaml]
+tracker:
+  init:
+    min_dt: 0.05
+    lateral_speed_std: 0.0

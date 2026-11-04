@@ -1,0 +1,4 @@
+# + IMM (cruising and manoeuvring CTRV models).
+include: d_consistent_noise.yaml
+filter:
+  type: imm

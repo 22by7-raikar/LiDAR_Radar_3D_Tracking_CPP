@@ -1,0 +1,13 @@
+# The highway scenario plus a car stopped in the right lane 150 m ahead. It
+# enters the field of view at about 3.2 s and is passed at about 6 s: an object
+# that does not move like the ego vehicle, which a single-detection start
+# (assume ego speed) gets badly wrong.
+
+include: highway.yaml
+sim:
+  vehicles:
+    - {name: overtaker, x: -18.0, y: 3.7, velocity: 29.0, instructions: [[6.5, 0.0, -0.0123], [7.5, 0.0, 0.0123], [8.5, -2.0, 0.0]]}
+    - {name: lead, x: 40.0, y: 0.0, velocity: 25.0, instructions: [[2.0, -3.0, 0.0], [3.5, 3.0, 0.0], [5.0, 0.0, 0.0]]}
+    - {name: slow, x: 20.0, y: -3.7, velocity: 21.0, instructions: [[3.0, 1.5, 0.0], [6.0, 0.0, 0.0]]}
+    - {name: follower, x: -15.0, y: 0.0, velocity: 25.5, instructions: [[4.0, -0.5, 0.0], [6.0, 0.0, 0.0]]}
+    - {name: stalled, x: 150.0, y: -3.7, velocity: 0.0, instructions: []}

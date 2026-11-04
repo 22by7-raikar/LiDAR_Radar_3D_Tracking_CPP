@@ -1,0 +1,13 @@
+# Build trees
+build/
+build-*/
+
+# Run outputs (CSV); figures in docs/images are generated from these
+output/
+
+# Python
+__pycache__/
+
+# IDE
+.vscode/
+.idea/

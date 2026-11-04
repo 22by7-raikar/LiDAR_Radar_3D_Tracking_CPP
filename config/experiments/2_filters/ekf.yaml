@@ -1,0 +1,5 @@
+include: ../../default.yaml
+filter:
+  type: ekf
+tracker:
+  association: oracle

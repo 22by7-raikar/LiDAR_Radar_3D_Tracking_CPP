@@ -1,0 +1,5 @@
+# + process noise tuned for NEES consistency.
+include: c_two_point_init.yaml
+filter:
+  accel_noise: 3.0
+  yaw_accel_noise: 0.5

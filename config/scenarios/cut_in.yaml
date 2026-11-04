@@ -1,0 +1,22 @@
+# 20 s of mostly steady traffic with a cut-in and a hard brake, to separate
+# filters that adapt to manoeuvres from filters tuned for them throughout.
+# The ego vehicle drives at 25 m/s in the centre lane.
+
+sim:
+  duration: 20.0
+  vehicles:
+    - name: lead          # ego lane ahead; brakes hard at 13 s, back to 25 m/s by 17.5 s
+      x: 45.0
+      y: 0.0
+      velocity: 25.0
+      instructions: [[13.0, -4.0, 0.0], [14.5, 2.0, 0.0], [17.5, 0.0, 0.0]]
+    - name: cutter        # overtakes on the left, cuts in at 9.5-11.5 s, then matches speed
+      x: -30.0
+      y: 3.7
+      velocity: 29.0
+      instructions: [[9.5, 0.0, -0.0123], [10.5, 0.0, 0.0123], [11.5, -2.0, 0.0], [13.5, 0.0, 0.0]]
+    - name: slow          # right lane, 2 m/s slower, falls behind
+      x: 15.0
+      y: -3.7
+      velocity: 23.0
+      instructions: []

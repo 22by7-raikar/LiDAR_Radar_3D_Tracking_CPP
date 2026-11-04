@@ -1,0 +1,4 @@
+# Centroid detector with its noise declared honestly (about 1 m).
+include: f_centroid_detector.yaml
+noise:
+  lidar_std: 1.0

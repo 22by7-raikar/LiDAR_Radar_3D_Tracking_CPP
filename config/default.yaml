@@ -1,0 +1,94 @@
+# Recommended configuration, with every parameter at its default value.
+# Every key is optional; omitted keys keep the built-in defaults, unknown keys
+# are an error. A file can start from others with `include: other.yaml` or
+# `include: [a.yaml, b.yaml]`. Units are metres, seconds and radians.
+# Frames: tracks and vehicles are in the world frame (x along the road, y to
+# the left); detections and the field of view are in the ego frame.
+
+noise:                      # sensor noise, used by the simulator and the filters
+  lidar_std: 0.15           # per axis
+  radar_range_std: 0.3
+  radar_bearing_std: 0.03
+  radar_rate_std: 0.3
+
+filter:
+  type: imm                 # imm | ukf | ekf | naive_ukf
+  accel_noise: 3.0          # ukf, ekf, naive_ukf: longitudinal acceleration noise [m/s²]
+  yaw_accel_noise: 0.5      # ukf, ekf, naive_ukf: yaw acceleration noise [rad/s²]
+  sigma:                    # ukf, imm: unscented transform
+    scheme: merwe           # merwe | julier
+    alpha: 1.0
+    beta: 2.0
+    kappa: 0.0
+  imm:
+    models:                 # one CTRV model per entry
+      - {accel_noise: 0.3, yaw_accel_noise: 0.02}   # cruising
+      - {accel_noise: 3.0, yaw_accel_noise: 0.5}    # manoeuvring
+    switch_rate: 0.1        # [1/s]
+    initial_probabilities: [0.8, 0.2]
+
+tracker:
+  association: gnn          # gnn | oracle
+  gate_chi2_lidar: 13.82    # 99.9 % quantile, 2 DoF
+  gate_chi2_radar: 16.27    # 99.9 % quantile, 3 DoF
+  management: score         # score | hits
+  confirm_hits: 4           # hits only
+  tentative_timeout: 0.25
+  max_coast: 1.0
+  score:
+    lidar_detection_probability: 0.9
+    radar_detection_probability: 0.9
+    lidar_clutter_density: 0.001    # per m² per frame
+    radar_clutter_density: 0.003    # per m² per frame
+    radar_rate_span: 30.0
+    confirm: 10.0
+    delete_tentative: -5.0
+    delete_drop: 15.0
+  init:
+    method: two_point       # two_point | single
+    max_speed: 40.0
+    min_dt: 0.2
+    yaw_rate_std: 0.3
+    lateral_speed_std: 1.0  # 0 disables the road-direction prior
+
+sim:
+  duration: 10.0
+  step: 0.03333333333333333 # 1/30 s
+  fov: [-30.0, 70.0, -9.0, 9.0]   # x_min, x_max, y_min, y_max in the ego frame
+  ego: {name: ego, x: 0.0, y: 0.0, velocity: 25.0, angle: 0.0, length: 4.6, width: 1.9, height: 1.5, wheelbase: 2.8, instructions: []}
+  lidar:
+    enabled: true
+    rate: 30.0
+    offset: 0.0
+    detection_probability: 1.0
+    clutter_rate: 0.0       # mean false detections per frame
+    model: point            # point | scan
+    scan:                   # used when model is scan
+      mount_height: 1.9
+      layers: 64
+      lowest_deg: -24.8
+      fov_deg: 26.8
+      azimuth_step_deg: 0.1
+      range_std: 0.02
+      max_range: 120.0
+      cluster_cell: 0.6
+      merge_margin: 0.3
+      min_points: 5
+      detector: box         # box | centroid
+      nominal_length: 4.6
+      nominal_width: 1.9
+      nominal_height: 1.5
+  radar:
+    enabled: true
+    rate: 30.0
+    offset: 0.0
+    detection_probability: 1.0
+    clutter_rate: 0.0
+  # vehicles: omitted here, so the built-in highway scenario is used
+  # (config/scenarios/highway.yaml spells it out).
+
+eval:
+  rate: 30.0
+  start: 1.0
+  match_distance: 3.0
+  ospa_cutoff: 5.0

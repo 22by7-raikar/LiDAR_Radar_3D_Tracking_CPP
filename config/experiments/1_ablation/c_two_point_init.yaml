@@ -1,0 +1,5 @@
+# + two-point initialisation with the road-direction prior.
+include: b_robust_ukf.yaml
+tracker:
+  init:
+    method: two_point

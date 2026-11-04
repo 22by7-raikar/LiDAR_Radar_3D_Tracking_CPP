@@ -1,0 +1,6 @@
+# Lidar position from the mean of the returns instead of the fitted box.
+include: ../../realistic.yaml
+sim:
+  lidar:
+    scan:
+      detector: centroid

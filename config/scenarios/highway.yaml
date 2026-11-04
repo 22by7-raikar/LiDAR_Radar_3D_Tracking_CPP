@@ -1,0 +1,28 @@
+# The built-in default scenario, written out. Three lanes at y = 3.7, 0 and
+# -3.7 m; the ego vehicle drives at 25 m/s in the centre lane.
+# Instructions are [time, acceleration, steering]: a steering pulse of
+# ±0.0123 rad for 1 s each way moves a car at 29 m/s by one lane.
+
+sim:
+  duration: 10.0
+  vehicles:
+    - name: overtaker     # passes on the left, cuts in 12 m ahead at 6.5-8.5 s, then slows
+      x: -18.0
+      y: 3.7
+      velocity: 29.0
+      instructions: [[6.5, 0.0, -0.0123], [7.5, 0.0, 0.0123], [8.5, -2.0, 0.0]]
+    - name: lead          # ego lane, brakes at 2 s and recovers by 5 s
+      x: 40.0
+      y: 0.0
+      velocity: 25.0
+      instructions: [[2.0, -3.0, 0.0], [3.5, 3.0, 0.0], [5.0, 0.0, 0.0]]
+    - name: slow          # right lane, speeds up from 21 to 25.5 m/s
+      x: 20.0
+      y: -3.7
+      velocity: 21.0
+      instructions: [[3.0, 1.5, 0.0], [6.0, 0.0, 0.0]]
+    - name: follower      # ego lane, directly behind (radar bearing ±pi), drops back slightly
+      x: -15.0
+      y: 0.0
+      velocity: 25.5
+      instructions: [[4.0, -0.5, 0.0], [6.0, 0.0, 0.0]]

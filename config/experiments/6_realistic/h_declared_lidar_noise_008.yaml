@@ -1,0 +1,4 @@
+# Declare the box detector's empirical noise (about 0.08 m per axis) instead of 0.15 m.
+include: ../../realistic.yaml
+noise:
+  lidar_std: 0.08

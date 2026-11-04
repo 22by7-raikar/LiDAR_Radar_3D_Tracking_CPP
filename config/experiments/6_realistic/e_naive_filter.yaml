@@ -1,0 +1,9 @@
+# The naive UKF, its tuning and single-detection start inside the same tracker.
+include: ../../realistic.yaml
+filter:
+  type: naive_ukf
+  accel_noise: 1.5
+  yaw_accel_noise: 0.5
+tracker:
+  init:
+    method: single

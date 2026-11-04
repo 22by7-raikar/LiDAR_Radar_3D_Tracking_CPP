@@ -1,0 +1,17 @@
+# Harder sensing: lidar detections from ray-cast scans at 10 Hz, radar at
+# 20 Hz out of step with the lidar, missed detections, clutter, and no labels.
+
+sim:
+  step: 0.005
+  lidar:
+    rate: 10.0
+    detection_probability: 0.95
+    clutter_rate: 1.0
+    model: scan
+  radar:
+    rate: 20.0
+    offset: 0.025
+    detection_probability: 0.9
+    clutter_rate: 3.0
+eval:
+  rate: 20.0

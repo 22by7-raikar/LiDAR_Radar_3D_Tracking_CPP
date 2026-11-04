@@ -1,0 +1,5 @@
+# Start from one detection, assuming the object moves like the ego vehicle.
+include: [../../default.yaml, ../../scenarios/stalled.yaml]
+tracker:
+  init:
+    method: single

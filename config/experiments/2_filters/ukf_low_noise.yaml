@@ -1,0 +1,5 @@
+# Single UKF tuned for steady driving (close to the IMM's cruising model).
+include: ukf.yaml
+filter:
+  accel_noise: 0.5
+  yaw_accel_noise: 0.05

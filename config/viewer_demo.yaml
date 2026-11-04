@@ -1,0 +1,7 @@
+# The realistic configuration stepped at 30 Hz, for recording the 3D viewer
+# (scripts/make_figures.sh): fewer frames to render, same sensors.
+include: realistic.yaml
+sim:
+  step: 0.03333333333333333
+  radar:
+    offset: 0.03333333333333333

@@ -1,0 +1,4 @@
+# Known association: the upper bound for the tracker.
+include: ../../realistic.yaml
+tracker:
+  association: oracle

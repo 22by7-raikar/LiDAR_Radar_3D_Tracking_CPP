@@ -1,0 +1,4 @@
+# The naive UKF with the same tuning: bearing wrap-around for the car behind.
+include: radar_10hz_ukf.yaml
+filter:
+  type: naive_ukf

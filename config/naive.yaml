@@ -1,0 +1,12 @@
+# The comparison point: a conventional tracker built around a textbook UKF.
+# One naive UKF per vehicle with hand-tuned process noise, started from a
+# single detection, with known association.
+
+filter:
+  type: naive_ukf
+  accel_noise: 1.5
+  yaw_accel_noise: 0.5
+tracker:
+  association: oracle
+  init:
+    method: single

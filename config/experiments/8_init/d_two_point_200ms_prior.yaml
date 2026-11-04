@@ -1,0 +1,2 @@
+# Default: two-point, 0.2 s, road-direction prior. All four use the stalled-car scenario and GNN association.
+include: [../../default.yaml, ../../scenarios/stalled.yaml]

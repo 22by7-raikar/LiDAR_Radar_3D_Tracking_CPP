@@ -1,0 +1,3 @@
+# Realistic sensing on the cut-in scenario: the run behind the README animation
+# (scripts/make_figures.sh).
+include: [realistic.yaml, scenarios/cut_in.yaml]

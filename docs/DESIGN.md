@@ -70,6 +70,8 @@ that do not move like the ego vehicle.
 
 ![Ablation](images/ablation.png)
 
+![Filters compared](images/filters.png)
+
 | Realistic sensing (scan lidar 10 Hz, radar 20 Hz, misses, clutter) | OSPA [m] | ID switches / run | false tracks |
 |---|---|---|---|
 | Known labels | 0.077 | 0 | 0 |

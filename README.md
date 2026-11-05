@@ -1,20 +1,39 @@
 # LiDAR–Radar 3D Tracking
 
 Multi-target vehicle tracking from LiDAR and radar in C++17 with Eigen.
-It runs an IMM filter over CTRV unscented Kalman filters, uses global
-nearest-neighbour association (Hungarian algorithm) with χ² gating, and
-manages tracks with a log-likelihood-ratio score. LiDAR detections come from
-L-shape boxes fitted to ray-cast point clouds. A seeded highway simulator
-with a moving ego vehicle measures every design choice.
+Classical estimation throughout: an IMM of CTRV unscented Kalman filters,
+χ² gating, Hungarian assignment, log-likelihood-ratio track management, and
+an L-shape box detector on ray-cast LiDAR scans. A seeded highway simulator
+with a moving ego vehicle measures every design choice over 100 runs.
 
-![3D view: lidar returns, radar returns, confirmed tracks and predicted paths](docs/images/viewer_3d.gif)
+![Top view: lidar returns, radar detections with clutter, true vehicles and confirmed tracks through a cut-in and a hard brake](docs/images/tracking.gif)
+
+*Realistic sensing (10 Hz scan LiDAR, 20 Hz radar, misses, clutter, no
+labels). A car cuts in at 9.5 s and the lead car brakes at 13 s; the lower
+panel shows the IMM switching each track to its manoeuvring model.*
 
 ![Pipeline](docs/images/architecture.png)
 
+## Algorithms
+
+| Stage | Implemented | Compared against | Code |
+|---|---|---|---|
+| Motion model | CTRV (constant turn rate and velocity) | – | [models.h](include/fusion/models.h) |
+| State estimation | IMM of two CTRV UKFs (cruising / manoeuvring) | UKF, EKF, textbook UKF | [filters/](include/fusion/filters) |
+| UKF numerics | Scaled (Merwe) or Julier sigma points, circular means, Joseph form, LDLT, PD repair | textbook UKF | [ukf.h](include/fusion/filters/ukf.h) |
+| Gating | χ² test on the innovation (99.9 %) | – | [tracker.h](include/fusion/tracking/tracker.h) |
+| Association | Global nearest neighbour, Hungarian algorithm, confirmed tracks first | known labels | [hungarian.h](include/fusion/tracking/hungarian.h) |
+| Track management | Log-likelihood-ratio score (confirm, coast, delete) | M-of-N hit count | [tracker.h](include/fusion/tracking/tracker.h) |
+| Initialisation | Two detections ≥ 0.2 s apart, road-direction prior | single detection | [tracker.h](include/fusion/tracking/tracker.h) |
+| LiDAR detection | Grid clustering, L-shape fit on the visible contour, size completion | centroid of returns | [lidar_scanner.h](include/fusion/sim/lidar_scanner.h) |
+| Simulation | Kinematic bicycle traffic, 64-beam ray-cast LiDAR, radar with clutter and misses | – | [sim/](include/fusion/sim) |
+| Evaluation | RMSE, NEES, NIS, OSPA, ID switches, false tracks | – | [metrics.h](include/fusion/eval/metrics.h) |
+
+Why each was chosen, and the trade-offs, are in [docs/DESIGN.md](docs/DESIGN.md).
+
 ## Results
 
-Means over 100 seeded runs. Full numbers and trade-offs are in
-[docs/DESIGN.md](docs/DESIGN.md).
+Means over 100 seeded runs.
 
 | | Naive UKF tracker | This pipeline |
 |---|---|---|
@@ -27,6 +46,10 @@ Means over 100 seeded runs. Full numbers and trade-offs are in
 
 Under realistic sensing, GNN association comes within 5 % of known labels
 (OSPA 0.081 m against 0.077 m), with no identity switches.
+
+![Filters compared](docs/images/filters.png)
+
+![Ablation](docs/images/ablation.png)
 
 ## Build
 
@@ -48,7 +71,8 @@ and open `build/doc/html/index.html`.
 ```bash
 ./build/fusion_run --config config/realistic.yaml --out output/run    # one run, metrics + CSVs
 ./build/fusion_bench --runs 100 config/experiments/2_filters/*.yaml   # Monte Carlo comparison
-./build/fusion_viewer --config config/realistic.yaml                  # 3D view
+./build/fusion_viewer --config config/demo.yaml                       # interactive 3D view
+python3 scripts/animate_run.py output/run tracking.gif                # top-view animation
 ```
 
 Every parameter is in [config/default.yaml](config/default.yaml). Override
@@ -75,7 +99,7 @@ src/              implementation
 apps/             fusion_run, fusion_bench, fusion_viewer
 tests/            GoogleTest unit and regression tests
 config/           defaults, scenarios, experiments
-scripts/          experiment runner and figures
+scripts/          experiments, figures and the animation
 docs/             design notes and figures
 ```
 

@@ -18,7 +18,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.lines import Line2D  # noqa: E402
-from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Polygon  # noqa: E402
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch, Patch, Polygon  # noqa: E402
 
 INK = "#1f2328"
 MUTED = "#8c959f"
@@ -129,7 +129,7 @@ def fig_architecture(out):
             ax.text((x0 + x1) / 2, (y0 + y1) / 2 + 0.1, text, ha="center", fontsize=8,
                     color=MUTED)
 
-    group(0.2, 0.5, 2.9, 4.4, "SENSORS (ego frame)")
+    group(0.2, 0.5, 2.9, 4.4, "SENSORS → detections + ego pose")
     block(0.35, 2.85, 2.6, 1.85, "LiDAR  10–30 Hz",
           ["64-beam ray-cast scan", "grid clusters + merge", "L-shape box on contour",
            "→ box centre (x, y)"], BLUE)
@@ -155,7 +155,6 @@ def fig_architecture(out):
     ax.text(9.25, 3.05, "matched", fontsize=8, color=MUTED)
     ax.text(6.05, 2.95, "unmatched detections", fontsize=8, color=MUTED)
     arrow(3.1, 3.75, 3.75, 3.95)
-    ax.text(3.42, 4.55, "detections\n+ ego pose", ha="center", fontsize=8, color=MUTED)
     arrow(3.1, 1.6, 3.75, 3.65)
 
     group(10.8, 0.5, 2.0, 4.4, "OUTPUT")
@@ -183,70 +182,124 @@ def bench_table(path):
             "ospa": np.mean(rows["ospa"]),
             "false": np.mean(rows["false_tracks"]),
             "switches": np.mean(rows["id_switches"]),
+            "cost": rows["us_per_detection"],
         }
     return out
 
 
-def fig_ablation(bench, out):
-    t = bench_table(os.path.join(bench, "1_ablation.csv"))
-    labels = {
-        "a_naive": "naive UKF\ntracker",
-        "b_robust_ukf": "+ robust\nUKF",
-        "c_two_point_init": "+ two-point\ninit",
-        "d_consistent_noise": "+ consistent\nprocess noise",
-        "e_imm": "+ IMM",
-    }
-    names = [n for n in labels if n in t]
-    x = np.arange(len(names))
-    fig, (ax, ax2) = plt.subplots(1, 2, figsize=(12, 4), gridspec_kw={"width_ratios": [3, 2]})
-    w = 0.38
-    vx = [t[n]["rmse"][2] for n in names]
-    vy = [t[n]["rmse"][3] for n in names]
-    ax.bar(x - w / 2, vx, w, color=BLUE, label="vx")
-    ax.bar(x + w / 2, vy, w, color=ORANGE, label="vy")
-    for i, n in enumerate(names):
-        ax.text(i, max(vx[i], vy[i]) + 0.008, f"p95 {t[n]['p95']:.2f}", ha="center", fontsize=8,
-                color=MUTED)
-    ax.set_xticks(x, [labels[n] for n in names], fontsize=8)
-    ax.set_ylabel("velocity RMSE after 1 s [m/s]")
-    ax.set_title("Velocity error, one change at a time (100 seeds)")
-    ax.legend(loc="upper right")
+def velocity_rmse(row):
+    """RMSE of the velocity vector, from the per-axis RMSEs."""
+    return float(np.hypot(row["rmse"][2], row["rmse"][3]))
 
-    parts = ax2.violinplot([t[n]["nees"] for n in names], positions=x, showmedians=True,
-                           widths=0.7)
-    for b in parts["bodies"]:
-        b.set_facecolor(BLUE)
-        b.set_alpha(0.35)
-    for k in ("cbars", "cmins", "cmaxes", "cmedians"):
-        parts[k].set_color(BLUE)
-    ax2.axhline(2.0, color=GREEN, lw=1.2, ls="--")
-    ax2.text(len(names) - 0.5, 2.05, "consistent = 2", color=GREEN, ha="right", fontsize=8,
-             va="bottom")
-    ax2.set_xticks(x, [labels[n] for n in names], fontsize=7, rotation=35, ha="right")
-    ax2.set_ylabel("position NEES per run")
-    ax2.set_title("Filter consistency")
+
+def fig_ablation(bench, out):
+    """One bar per pipeline change: how much velocity error each change removes."""
+    t = bench_table(os.path.join(bench, "1_ablation.csv"))
+    steps = [("a_naive", "Naive tracker (textbook UKF)"),
+             ("b_robust_ukf", "+ robust UKF numerics"),
+             ("c_two_point_init", "+ two-detection start"),
+             ("d_consistent_noise", "+ process noise tuned for NEES ≈ 2"),
+             ("e_imm", "+ IMM (cruising / manoeuvring UKFs)")]
+    steps = [(k, label) for k, label in steps if k in t]
+    err = [velocity_rmse(t[k]) for k, _ in steps]
+    nees = [np.mean(t[k]["nees"]) for k, _ in steps]
+    y = np.arange(len(steps))[::-1]
+
+    fig, ax = plt.subplots(figsize=(10, 3.6))
+    colors = [MUTED] + [BLUE] * (len(steps) - 2) + [GREEN]
+    ax.barh(y, err, color=colors, height=0.62)
+    for yi, e, n in zip(y, err, nees):
+        ax.text(e + 0.006, yi, f"{e:.3f} m/s", va="center", fontsize=9.5, fontweight="bold")
+        ax.text(0.505, yi, f"{n:.2f}", va="center", ha="right", fontsize=9.5,
+                color=GREEN if abs(n - 2) < 0.1 else RED)
+    ax.text(0.505, len(steps) - 0.35, "NEES (ideal 2)", ha="right", fontsize=8.5, color=MUTED)
+    ax.set_yticks(y, [label for _, label in steps], fontsize=9.5)
+    ax.set_xlim(0, 0.51)
+    ax.set_xlabel("velocity RMSE [m/s], highway scenario, mean of 100 runs")
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
+    ax.set_title(f"Each change and what it buys: velocity error "
+                 f"{100 * (1 - err[-1] / err[0]):.0f} % lower, filter consistent")
     save(fig, out, "ablation.png")
 
 
+def fig_filters(bench, out):
+    """EKF, UKF and IMM on three scenarios, and what each costs."""
+    groups = [("Highway (lidar + radar)", "2_filters.csv", {"ekf": "EKF", "ukf": "UKF",
+                                                           "imm": "IMM"}),
+              ("Cut-in and hard brake", "3_cut_in.csv", {"ekf": "EKF", "ukf": "UKF",
+                                                         "imm": "IMM"}),
+              ("Radar only, 10 Hz", "4_radar_rate.csv",
+               {"radar_10hz_naive_ukf": "naive UKF", "radar_10hz_ekf": "EKF",
+                "radar_10hz_ukf": "UKF", "radar_10hz_imm": "IMM"})]
+    color = {"naive UKF": RED, "EKF": MUTED, "UKF": BLUE, "IMM": GREEN}
+    fig, axes = plt.subplots(1, 4, figsize=(13, 3.4),
+                             gridspec_kw={"width_ratios": [3, 3, 4, 3], "wspace": 0.35})
+    cost = {}
+    for ax, (title, name, names) in zip(axes, groups):
+        t = bench_table(os.path.join(bench, name))
+        labels = [names[k] for k in names if k in t]
+        values = [velocity_rmse(t[k]) for k in names if k in t]
+        top = 1.25 * max(v for v in values if v < 5)
+        for i, (label, v) in enumerate(zip(labels, values)):
+            ax.bar(i, min(v, top), color=color[label], width=0.65)
+            text = f"{v:.2f}" if v < top else f"{v:.0f} ↑\ndiverged"
+            ax.text(i, min(v, top) * 1.02, text, ha="center", va="bottom", fontsize=9,
+                    fontweight="bold", color=INK if v < top else RED)
+        ax.set_xticks(range(len(labels)), labels, fontsize=9)
+        ax.set_ylim(0, top * 1.15)
+        ax.set_title(title, fontsize=10.5)
+        for k in names:
+            if k in t and names[k] not in cost and name == "2_filters.csv":
+                cost[names[k]] = np.mean(t[k]["cost"])
+    axes[0].set_ylabel("velocity RMSE [m/s]")
+    t = bench_table(os.path.join(bench, "4_radar_rate.csv"))
+    cost["naive UKF"] = np.mean(t["radar_10hz_naive_ukf"]["cost"]) if "radar_10hz_naive_ukf" in t \
+        else np.nan
+    order = [k for k in ("EKF", "UKF", "IMM") if k in cost]
+    ax = axes[3]
+    ax.bar(range(len(order)), [cost[k] for k in order], color=[color[k] for k in order],
+           width=0.65)
+    for i, k in enumerate(order):
+        ax.text(i, cost[k] * 1.02, f"{cost[k]:.1f}", ha="center", va="bottom", fontsize=9,
+                fontweight="bold")
+    ax.set_xticks(range(len(order)), order, fontsize=9)
+    ax.set_ylabel("µs per detection")
+    ax.set_title("Cost (highway)", fontsize=10.5)
+    fig.suptitle("Filters compared (100 runs each): EKF ≈ UKF, IMM is the most accurate, "
+                 "the naive UKF diverges on radar alone", x=0.06, ha="left", y=1.04,
+                 fontweight="bold", fontsize=12)
+    save(fig, out, "filters.png")
+
+
 def fig_imm(runs, out):
+    """Mode probability and velocity error through the cut-in and the hard brake."""
     imm, ukf = runs["cut_in_imm"], runs["cut_in_ukf"]
-    fig, axes = plt.subplots(2, 1, figsize=(11, 5.8), sharex=True)
-    names = {0: "lead (brakes 13 s)", 1: "cutter (cuts in 9.5 s)", 2: "slow"}
+    names = {0: "lead car", 1: "cutting-in car", 2: "slow car"}
+    fig, axes = plt.subplots(2, 1, figsize=(11, 5.6), sharex=True,
+                             gridspec_kw={"hspace": 0.12})
+    events = []
     for v in imm.vehicles():
         s = imm.scored[imm.scored["vehicle"] == v]
         tracks = set(s["track"].astype(int))
         e = imm.estimates[np.isin(imm.estimates["track"].astype(int), list(tracks))]
-        axes[0].plot(e["time"], e["mu1"], color=PALETTE[v], lw=1.5, label=names.get(v, v))
+        axes[0].plot(e["time"], e["mu1"], color=PALETTE[v], lw=1.6, label=names.get(v, str(v)))
         t = imm.truth[imm.truth["vehicle"] == v]
         dv = np.gradient(t["v"], t["time"])
-        man = (np.abs(t["yaw_rate"]) > 0.02) | (np.abs(dv) > 0.2)
+        for mask, what in ((np.abs(t["yaw_rate"]) > 0.01, "lane change"),
+                           (dv < -0.5, f"brakes {dv.min():.0f} m/s²")):
+            if mask.any():
+                events.append((t["time"][mask][0], t["time"][mask][-1],
+                               f"{names.get(v, v)}\n{what}", PALETTE[v]))
+    for k, (t0, t1, label, c) in enumerate(sorted(events)):
         for ax in axes:
-            ax.fill_between(t["time"], 0, 1, where=man, color=PALETTE[v], alpha=0.1,
-                            transform=ax.get_xaxis_transform(), lw=0)
+            ax.axvspan(t0, t1, color=c, alpha=0.1, lw=0)
+            ax.axvline(t0, color=c, lw=0.8, ls=":")
+        axes[0].text(t0 + 0.1, 0.78 - 0.17 * k, label, fontsize=8.5, color=c, va="top",
+                     fontweight="bold", bbox=dict(fc="white", ec="none", alpha=0.85, pad=1))
     axes[0].set_ylabel("P(manoeuvring model)")
-    axes[0].set_title("IMM mode probability (shaded: when each vehicle manoeuvres)")
-    axes[0].legend(loc="upper left", ncol=3)
     axes[0].set_ylim(0, 1.02)
+    axes[0].legend(loc="upper left", ncol=3, fontsize=9)
 
     def speed_error(run):
         s = run.scored
@@ -256,18 +309,24 @@ def fig_imm(runs, out):
         k = 9
         return times, np.convolve(err, np.ones(k) / k, mode="same")
 
-    for run, color, label in ((ukf, ORANGE, "single UKF (tuned for manoeuvres)"),
-                              (imm, BLUE, "IMM")):
+    for run, color, label in ((ukf, MUTED, "single UKF (noise sized for manoeuvres)"),
+                              (imm, INK, "IMM")):
         t, e = speed_error(run)
-        axes[1].plot(t, e, color=color, lw=1.4, label=label)
-    axes[1].set_ylabel("velocity error [m/s]\n(RMS over vehicles, smoothed)")
+        axes[1].plot(t, e, color=color, lw=1.5, label=label)
+    axes[1].legend(loc="upper right", ncol=2, fontsize=9)
+    axes[1].set_ylabel("velocity error [m/s]")
     axes[1].set_xlabel("time [s]")
-    axes[1].legend(loc="upper left")
-    axes[1].set_ylim(bottom=0)
+    axes[1].set_ylim(0, 0.8)
+    axes[1].set_xlim(0, 20)
+    fig.suptitle("The IMM switches to its manoeuvring model when a car manoeuvres, "
+                 "and is more precise than one UKF the rest of the time", x=0.06, ha="left",
+                 y=0.97,
+                 fontweight="bold", fontsize=12)
     save(fig, out, "imm_cut_in.png")
 
 
 def fig_scan(run, out):
+    """How the lidar detector turns a scan into a vehicle position."""
     pts, obj, truth = run.points, run.objects, run.truth
     times = np.unique(obj["time"])
     frame = times[np.argmin(np.abs(times - 2.0))]
@@ -275,42 +334,49 @@ def fig_scan(run, out):
     o = obj[np.abs(obj["time"] - frame) < 1e-6]
     tr = truth[np.abs(truth["time"] - frame) < 1e-6]
     rx, ry, ryaw = run.to_ego(tr["time"], tr["x"], tr["y"], tr["yaw"])
+    # The car seen side-on (an L of returns) and the car seen only from behind.
+    order = np.argsort(np.abs(ry) - 0.01 * np.abs(rx))[::-1]
+    side, rear = order[0], int(np.argmax(rx))
 
-    fig = plt.figure(figsize=(13.5, 4.2))
-    grid = fig.add_gridspec(1, len(tr) + 1, width_ratios=[1] * len(tr) + [1.6])
-    for k, row in enumerate(tr):
+    fig = plt.figure(figsize=(13, 3.9))
+    grid = fig.add_gridspec(1, 3, width_ratios=[1, 1, 1.25], wspace=0.25)
+    for k, (i, title) in enumerate(((side, "Car beside the ego: an L of returns"),
+                                    (rear, "Car ahead: only its rear is visible"))):
         ax = fig.add_subplot(grid[0, k])
-        mine = p[p["vehicle"] == row["vehicle"]]
-        ax.scatter(mine["x"], mine["y"], s=2, color=BLUE, alpha=0.35, lw=0)
-        ax.add_patch(Polygon(car_outline(rx[k], ry[k], ryaw[k]), closed=True, fc="none", ec=INK,
-                             lw=1, ls="--"))
-        ax.plot(rx[k], ry[k], "+", color=INK, ms=10, mew=1.5)
-        for det in o[o["vehicle"] == row["vehicle"]]:
-            ax.plot(det["centroid_x"], det["centroid_y"], "x", color=RED, ms=9, mew=2)
-            ax.plot(det["center_x"], det["center_y"], "o", color=GREEN, ms=7, mfc="none", mew=2)
-        ax.set_xlim(rx[k] - 3.5, rx[k] + 3.5)
-        ax.set_ylim(ry[k] - 3.5, ry[k] + 3.5)
+        mine = p[p["vehicle"] == tr["vehicle"][i]]
+        ax.scatter(mine["x"], mine["y"], s=3, color=BLUE, alpha=0.35, lw=0)
+        ax.add_patch(Polygon(car_outline(rx[i], ry[i], ryaw[i]), closed=True, fc="none",
+                             ec=INK, lw=1.2, ls="--"))
+        for det in o[o["vehicle"] == tr["vehicle"][i]]:
+            ax.plot(det["centroid_x"], det["centroid_y"], "x", color=RED, ms=11, mew=2.5)
+            ax.add_patch(Polygon(car_outline(det["center_x"], det["center_y"], det["yaw"]),
+                                 closed=True, fc=GREEN, alpha=0.18, ec=GREEN, lw=1.5))
+            ax.plot(det["center_x"], det["center_y"], "o", color=GREEN, ms=8)
+        ax.plot(rx[i], ry[i], "+", color=INK, ms=12, mew=1.5)
+        ax.set_xlim(rx[i] - 3.8, rx[i] + 3.8)
+        ax.set_ylim(ry[i] - 2.6, ry[i] + 2.6)
         ax.set_aspect("equal")
-        ax.set_title(f"car at ({rx[k]:.0f}, {ry[k]:.0f}) m", fontsize=10)
+        ax.set_title(title, fontsize=10.5)
         ax.set_xticks([])
         ax.set_yticks([])
-        d = np.array([rx[k], ry[k]])
-        d = -d / np.linalg.norm(d)
-        ax.annotate("", xy=(rx[k] + 3.2 * d[0], ry[k] + 3.2 * d[1]),
-                    xytext=(rx[k] + 2.4 * d[0], ry[k] + 2.4 * d[1]),
-                    arrowprops=dict(arrowstyle="->", color=MUTED))
-    fig.legend([Line2D([], [], color=BLUE, marker=".", ls=""),
+        for side_name in ("left", "bottom"):
+            ax.spines[side_name].set_color(LIGHT)
+        d = -np.array([rx[i], ry[i]]) / np.hypot(rx[i], ry[i])
+        tip = (0.5 + 0.47 * d[0], 0.5 + 0.45 * d[1])
+        tail = (0.5 + 0.33 * d[0], 0.5 + 0.33 * d[1])
+        ax.annotate("", xy=tip, xytext=tail, xycoords="axes fraction",
+                    arrowprops=dict(arrowstyle="->", color=MUTED, lw=1.5))
+        ax.text(tail[0], tail[1] - 0.06, "to ego", transform=ax.transAxes, fontsize=8.5,
+                color=MUTED, ha="center", va="top")
+    fig.legend([Line2D([], [], color=BLUE, marker=".", ls="", ms=8),
                 Line2D([], [], color=INK, ls="--"),
-                Line2D([], [], color=INK, marker="+", ls="", ms=9),
-                Line2D([], [], color=RED, marker="x", ls="", mew=2),
-                Line2D([], [], color=GREEN, marker="o", ls="", mfc="none", mew=2)],
-               ["lidar returns (top view)", "true outline", "true centre", "centroid of returns",
-                "fitted box centre"], loc="lower left", ncol=5, fontsize=8,
-               bbox_to_anchor=(0.02, -0.04))
-    fig.text(0.02, 0.98, f"One ray-cast scan at t = {frame:.1f} s "
-             "(grey arrow: towards the sensor)", fontweight="bold", fontsize=12, va="top")
-    ax2 = fig.add_subplot(grid[0, -1])
+                Line2D([], [], color=RED, marker="x", ls="", mew=2.5, ms=9),
+                Patch(fc=GREEN, alpha=0.3, ec=GREEN)],
+               ["lidar returns (top view)", "true vehicle (+ centre)",
+                "centroid of the returns", "fitted L-shape box (● centre)"],
+               loc="upper left", ncol=2, fontsize=9, bbox_to_anchor=(0.12, 0.1))
 
+    ax2 = fig.add_subplot(grid[0, 2])
     ox, oy = run.to_ego(truth["time"], truth["x"], truth["y"])
     tmap = {(round(t, 6), int(v)): (x, y) for t, v, x, y in zip(truth["time"], truth["vehicle"],
                                                                  ox, oy)}
@@ -321,36 +387,45 @@ def fig_scan(run, out):
             x, y = tmap[key]
             ec.append(np.hypot(row["centroid_x"] - x, row["centroid_y"] - y))
             eb.append(np.hypot(row["center_x"] - x, row["center_y"] - y))
-    bins = np.linspace(0, 3.0, 61)
-    ax2.hist(ec, bins=bins, color=RED, alpha=0.6, label=f"centroid (median {np.median(ec):.2f} m)")
-    ax2.hist(eb, bins=bins, color=GREEN, alpha=0.7,
-             label=f"box centre (median {np.median(eb):.2f} m)")
-    ax2.set_xlabel("position error of the detection [m]")
+    bins = np.linspace(0, 2.4, 49)
+    ax2.hist(ec, bins=bins, color=RED, alpha=0.65, label=f"centroid: median {np.median(ec):.2f} m")
+    ax2.hist(eb, bins=bins, color=GREEN, alpha=0.8,
+             label=f"L-shape box: median {np.median(eb):.2f} m")
+    ax2.set_xlabel("distance from the true centre [m]")
     ax2.set_ylabel("detections")
-    ax2.set_title(f"All {len(eb)} detections of the run")
-    ax2.legend()
+    ax2.set_title(f"Error over all {len(eb)} detections of a 20 s run", fontsize=10.5)
+    ax2.legend(loc="upper right", fontsize=9)
+    fig.suptitle("The centroid of the returns sits on the visible surface; the fitted box "
+                 "recovers the real centre", x=0.1, ha="left", y=1.02, fontweight="bold",
+                 fontsize=12)
     save(fig, out, "scan_detection.png")
     return float(np.median(eb)), float(np.median(ec))
 
 
 def fig_clutter(bench, out):
+    """Hit counting against the log-likelihood track score as radar clutter grows."""
     t = bench_table(os.path.join(bench, "7_clutter.csv"))
     rates = [0, 2, 5, 10, 20]
-    fig, axes = plt.subplots(1, 3, figsize=(12.5, 3.6))
-    for mgmt, color, label in (("score", BLUE, "log-likelihood score"),
-                               ("hits", ORANGE, "hit count (M = 4)")):
+    fig, axes = plt.subplots(1, 2, figsize=(11, 3.6), gridspec_kw={"wspace": 0.25})
+    for mgmt, color, label in (("hits", ORANGE, "hit count (M of N)"),
+                               ("score", BLUE, "log-likelihood score")):
         rows = [t[f"clutter_{r:02d}_{mgmt}"] for r in rates]
-        axes[0].plot(rates, [r["ospa"] for r in rows], "o-", color=color, label=label)
-        axes[1].plot(rates, [r["false"] for r in rows], "o-", color=color, label=label)
-        axes[2].plot(rates, [r["switches"] for r in rows], "o-", color=color, label=label)
-    axes[0].set_ylabel("mean OSPA [m]")
-    axes[1].set_ylabel("false tracks per scored time")
-    axes[2].set_ylabel("ID switches per run")
+        for ax, key in zip(axes, ("false", "ospa")):
+            values = [r[key] for r in rows]
+            ax.plot(rates, values, "o-", color=color, lw=2)
+            ax.text(20.6, values[-1], label, color=color, fontsize=9, va="center",
+                    fontweight="bold")
+    axes[0].set_ylabel("false tracks at any time")
+    axes[0].set_title("False tracks", fontsize=10.5)
+    axes[1].set_ylabel("OSPA [m] (lower is better)")
+    axes[1].set_title("Overall tracking error", fontsize=10.5)
     for ax in axes:
-        ax.set_xlabel("radar clutter per frame")
+        ax.set_xlabel("radar clutter detections per frame")
         ax.set_xticks(rates)
-    axes[0].legend()
-    axes[0].set_title("Track management under clutter")
+        ax.set_xlim(-0.5, 27)
+    fig.suptitle("Scoring tracks by likelihood keeps clutter from becoming tracks "
+                 "(100 runs per point)", x=0.07, ha="left", y=1.03, fontweight="bold",
+                 fontsize=12)
     save(fig, out, "clutter.png")
 
 
@@ -366,6 +441,7 @@ def main():
             ("cut_in_imm", "cut_in_ukf", "realistic")}
     fig_architecture(args.out)
     fig_ablation(args.bench, args.out)
+    fig_filters(args.bench, args.out)
     fig_imm(runs, args.out)
     box, centroid = fig_scan(runs["realistic"], args.out)
     print(f"scan detector median error: box {box:.3f} m, centroid {centroid:.3f} m")

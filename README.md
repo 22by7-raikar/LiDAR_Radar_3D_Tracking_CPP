@@ -6,11 +6,14 @@ Classical estimation throughout: an IMM of CTRV unscented Kalman filters,
 an L-shape box detector on ray-cast LiDAR scans. A seeded highway simulator
 with a moving ego vehicle measures every design choice over 100 runs.
 
-![Top view: lidar returns, radar detections with clutter, true vehicles and confirmed tracks through a cut-in and a hard brake](docs/images/tracking.gif)
+![LiDAR scan, radar range-bearing and range-Doppler views, and the fused tracks through a cut-in and a hard brake](docs/images/tracking.gif)
 
-*Realistic sensing (10 Hz scan LiDAR, 20 Hz radar, misses, clutter, no
-labels). A car cuts in at 9.5 s and the lead car brakes at 13 s; the lower
-panel shows the IMM switching each track to its manoeuvring model.*
+*One simulated run with realistic sensing: LiDAR at 10 Hz, radar at 20 Hz,
+missed detections, clutter, and no labels. Top left is the LiDAR scan seen
+from a chase camera, with the L-shape boxes the detector fits. Top right are
+the radar detections, by bearing and by Doppler (range rate), with false
+detections included. The bottom panel is the tracker's fused output against
+ground truth. A car cuts in at 9.5 s and the lead car brakes at 13 s.*
 
 ### What each sensor contributes
 
@@ -88,7 +91,7 @@ and open `build/doc/html/index.html`.
 ./build/fusion_run --config config/realistic.yaml --out output/run    # one run, metrics + CSVs
 ./build/fusion_bench --runs 100 config/experiments/2_filters/*.yaml   # Monte Carlo comparison
 ./build/fusion_viewer --config config/demo.yaml                       # interactive 3D view
-python3 scripts/animate_run.py output/run tracking.gif                # top-view animation
+python3 scripts/animate_run.py output/run tracking.gif                # sensor views + fused tracks
 ```
 
 Every parameter is in [config/default.yaml](config/default.yaml). Override

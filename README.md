@@ -12,6 +12,22 @@ with a moving ego vehicle measures every design choice over 100 runs.
 labels). A car cuts in at 9.5 s and the lead car brakes at 13 s; the lower
 panel shows the IMM switching each track to its manoeuvring model.*
 
+### What each sensor contributes
+
+![The same traffic tracked with LiDAR only, radar only, and both](docs/images/sensors.gif)
+
+*Same traffic, same seed, three trackers. LiDAR gives centimetre-level
+position but only infers speed from motion. Radar measures closing speed
+directly, but its 0.03 rad bearing noise spreads each detection metres
+sideways (orange ellipses). The fused tracker takes position from one and
+speed from the other: lowest error on both.*
+
+| 20 s run, realistic sensing | Position RMSE [m] | Velocity RMSE [m/s] |
+|---|---|---|
+| LiDAR only | 0.08 | 0.35 |
+| Radar only | 0.33 | 0.69 |
+| **Fused** | **0.06** | **0.27** |
+
 ![Pipeline](docs/images/architecture.png)
 
 ## Algorithms

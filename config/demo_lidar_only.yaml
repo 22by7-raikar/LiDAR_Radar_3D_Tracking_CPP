@@ -1,0 +1,5 @@
+# The demo run with the radar switched off (scripts/animate_sensors.py).
+include: demo.yaml
+sim:
+  radar:
+    enabled: false

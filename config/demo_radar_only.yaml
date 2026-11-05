@@ -1,0 +1,5 @@
+# The demo run with the lidar switched off (scripts/animate_sensors.py).
+include: demo.yaml
+sim:
+  lidar:
+    enabled: false
